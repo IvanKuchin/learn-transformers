@@ -99,7 +99,7 @@ def main():
     # test_lr_scheduler(d_model)
 
     train_ds = tf.data.Dataset.from_tensor_slices((trainX_enc, trainX_dec, trainY_dec)).batch(batch)
-    valid_ds = tf.data.Dataset.from_tensor_slices((valX_enc, valX_dec, valY_dec)).batch(batch)
+    valid_ds = tf.data.Dataset.from_tensor_slices((valX_enc, valX_dec, valY_dec)).batch(8*batch)
 
     optimizer = tf.keras.optimizers.Adam(LRScheduler(d_model, 4000), 0.9, 0.98, 1e-9)
     model = TransformerModel(enc_vocab_size, dec_vocab_size, enc_seq_length, dec_seq_length, heads, d_k, d_v, d_model,
