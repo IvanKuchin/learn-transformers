@@ -175,7 +175,7 @@ for epoch in range(epochs):
           + f"Validation Loss/acc {val_loss.result():.4f}/{val_accuracy.result():.4f}")
 
     # Save a checkpoint after every epoch
-    if (epoch + 1) % 1 == 0:
+    if (epoch + 1) % 100 == 0:
         save_path = ckpt_manager.save()
         # print(f"Saved checkpoint at epoch {epoch+1}")
 
