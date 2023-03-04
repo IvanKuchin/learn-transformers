@@ -136,7 +136,7 @@ def main():
 
         if epoch % 5 == 0:
             save_path = chkpt_mgr.save()   # TF save mechanism
-            print(f"{epoch=}: save checkpoint {save_path}")
+            # print(f"{epoch=}: save checkpoint {save_path}")
             model.save_weights(f"weights/{epoch:04}.ckpt")  # Keras save mechanism
 
     return
