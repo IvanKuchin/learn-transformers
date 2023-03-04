@@ -18,7 +18,7 @@ d_ff = 2048  # Dimensionality of the inner fully connected layer
 n = 6  # Number of layers in the encoder stack
 
 # Define the training parameters
-epochs = 20
+epochs = 201
 batch_size = 64
 beta_1 = 0.9
 beta_2 = 0.98
@@ -139,10 +139,10 @@ for epoch in range(epochs):
 
     # print("\nStart of epoch %d" % (epoch + 1))
 
-    start_time = time()
-
     # Iterate over the dataset batches
     for step, (train_batchX, train_batchY) in enumerate(train_dataset):
+        start_time = time()
+
         # Define the encoder and decoder inputs, and the decoder output
         encoder_input = train_batchX[:, 1:]
         decoder_input = train_batchY[:, :-1]
@@ -171,7 +171,7 @@ for epoch in range(epochs):
         val_accuracy(accuracy)
 
     # Print epoch number and accuracy and loss values at the end of every epoch
-    print(f"Epoch {epoch+1}: Training Loss/acc {train_loss.result():.4f}/{train_accuracy.result():.4f}, "
+    print(f"{epoch}/{epochs} ({(time() - start_time):.0f}s): Training Loss/acc {train_loss.result():.4f}/{train_accuracy.result():.4f}, "
           + f"Validation Loss/acc {val_loss.result():.4f}/{val_accuracy.result():.4f}")
 
     # Save a checkpoint after every epoch
