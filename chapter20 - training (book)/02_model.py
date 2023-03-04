@@ -98,6 +98,7 @@ def accuracy_fcn(target, prediction):
 train_loss = Mean(name='train_loss')
 train_accuracy = Mean(name='train_accuracy')
 val_loss = Mean(name='val_loss')
+val_accuracy = Mean(name='val_accuracy')
 
 # Create a checkpoint object and manager to manage multiple checkpoints
 ckpt = train.Checkpoint(model=training_model, optimizer=optimizer)
@@ -134,8 +135,9 @@ for epoch in range(epochs):
     train_loss.reset_states()
     train_accuracy.reset_states()
     val_loss.reset_states()
+    val_accuracy.reset_states()
 
-    print("\nStart of epoch %d" % (epoch + 1))
+    # print("\nStart of epoch %d" % (epoch + 1))
 
     start_time = time()
 
@@ -148,9 +150,9 @@ for epoch in range(epochs):
 
         train_step(encoder_input, decoder_input, decoder_output)
 
-        if step % 50 == 0:
-            print(f"Epoch {epoch + 1} Step {step} Loss {train_loss.result():.4f} "
-                  + f"Accuracy {train_accuracy.result():.4f}")
+        # if step % 50 == 0:
+        #     print(f"Epoch {epoch + 1} Step {step} Loss {train_loss.result():.4f} "
+        #           + f"Accuracy {train_accuracy.result():.4f}")
 
     # Run a validation step after every epoch of training
     for val_batchX, val_batchY in val_dataset:
@@ -164,17 +166,18 @@ for epoch in range(epochs):
 
         # Compute the validation loss
         loss = loss_fcn(decoder_output, prediction)
+        accuracy = accuracy_fcn(decoder_output, prediction)
         val_loss(loss)
+        val_accuracy(accuracy)
 
     # Print epoch number and accuracy and loss values at the end of every epoch
-    print(f"Epoch {epoch+1}: Training Loss {train_loss.result():.4f}, "
-          + f"Training Accuracy {train_accuracy.result():.4f}, "
-          + f"Validation Loss {val_loss.result():.4f}")
+    print(f"Epoch {epoch+1}: Training Loss/acc {train_loss.result():.4f}/{train_accuracy.result():.4f}, "
+          + f"Validation Loss/acc {val_loss.result():.4f}/{val_accuracy.result():.4f}")
 
     # Save a checkpoint after every epoch
     if (epoch + 1) % 1 == 0:
         save_path = ckpt_manager.save()
-        print(f"Saved checkpoint at epoch {epoch+1}")
+        # print(f"Saved checkpoint at epoch {epoch+1}")
 
         # Save the trained model weights
         training_model.save_weights("weights/wghts" + str(epoch + 1) + ".ckpt")
