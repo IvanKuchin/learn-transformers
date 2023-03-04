@@ -134,7 +134,7 @@ def main():
         print(f"{epoch}/{epochs} ({(time.time() - epoch_start_time):.0f}s): train loss/acc:{train_loss.result():.4f}/{train_accuracy.result():.4f}, valid loss/acc:{valid_loss.result():.4f}/{valid_accuracy.result():.4f}")
 
 
-        if epoch % 5 == 0:
+        if epoch % 10 == 0:
             save_path = chkpt_mgr.save()   # TF save mechanism
             # print(f"{epoch=}: save checkpoint {save_path}")
             model.save_weights(f"weights/{epoch:04}.ckpt")  # Keras save mechanism
