@@ -1,3 +1,5 @@
+import time
+
 import tensorflow as tf
 import numpy as np
 from prepare_dataset import PrepareDataset
@@ -110,6 +112,7 @@ def main():
     valid_loss = tf.keras.metrics.Mean(name="train_loss")
     valid_accuracy = tf.keras.metrics.Mean(name="train_metrics")
     for epoch in range(epochs):
+        epoch_start_time = time.time()
         train_loss.reset_states()
         train_accuracy.reset_states()
         valid_loss.reset_states()
@@ -127,10 +130,10 @@ def main():
             valid_loss(loss)
             valid_accuracy(accuracy)
 
-        print(f"{epoch:03}: train loss/acc:{train_loss.result():.4f}/{train_accuracy.result():.4f}, valid loss/acc:{valid_loss.result():.4f}/{valid_accuracy.result():.4f}")
+        print(f"{epoch:03} {(time.time() - epoch_start_time):.0f}s: train loss/acc:{train_loss.result():.4f}/{train_accuracy.result():.4f}, valid loss/acc:{valid_loss.result():.4f}/{valid_accuracy.result():.4f}")
 
 
-        if epoch % 1 == 0:
+        if epoch % 5 == 0:
             save_path = chkpt_mgr.save()   # TF save mechanism
             print(f"{epoch=}: save checkpoint {save_path}")
             model.save_weights(f"weights/{epoch:04}.ckpt")  # Keras save mechanism
