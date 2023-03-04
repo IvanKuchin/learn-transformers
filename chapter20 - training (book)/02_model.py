@@ -56,7 +56,7 @@ train_dataset = train_dataset.batch(batch_size)
 
 # Prepare the validation dataset batches
 val_dataset = data.Dataset.from_tensor_slices((valX, valY))
-val_dataset = val_dataset.batch(batch_size)
+val_dataset = val_dataset.batch(batch_size*8)
 
 # Create model
 training_model = TransformerModel(enc_vocab_size, dec_vocab_size, enc_seq_length,
@@ -132,6 +132,8 @@ def train_step(encoder_input, decoder_input, decoder_output):
     train_accuracy(accuracy)
 
 for epoch in range(epochs):
+    start_time = time()
+
     train_loss.reset_states()
     train_accuracy.reset_states()
     val_loss.reset_states()
@@ -141,7 +143,6 @@ for epoch in range(epochs):
 
     # Iterate over the dataset batches
     for step, (train_batchX, train_batchY) in enumerate(train_dataset):
-        start_time = time()
 
         # Define the encoder and decoder inputs, and the decoder output
         encoder_input = train_batchX[:, 1:]
