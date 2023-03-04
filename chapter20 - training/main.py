@@ -49,7 +49,7 @@ def accuracy_fcn(target, prediction):
     return tf.reduce_sum(accuracy) / tf.reduce_sum(inv_mask)
 
 
-# @function
+@tf.function
 def train_step(model, optimizer, enc_x, dec_x, dec_Y):
     with tf.GradientTape() as tape:
         pred = model(enc_x, dec_x, training=True)
