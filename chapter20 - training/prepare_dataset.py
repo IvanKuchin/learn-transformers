@@ -34,6 +34,7 @@ class PrepareDataset():
         ds = pickle.load(open(fname, "rb"))
         ds = ds[:self.reducer]
         for i in range(ds.shape[0]):
+            # ds[i, 0] = "<STARTT> " + ds[i, 0] + " <EOS>"
             ds[i, 0] = "<STARTT> " + ds[i, 0] + " <EOS>"
             ds[i, 1] = "<STARTT> " + ds[i, 1] + " <EOS>"
 
@@ -45,7 +46,7 @@ class PrepareDataset():
         enc_vocab_size = len(enc_tokenizer.word_index) + 1
 
         dec_tokenizer = self.create_tokenizer(ds_Y)
-        dec_seq_length = self.get_seq_length(ds_Y, dec_tokenizer)
+        dec_seq_length = self.get_seq_length(ds_Y, dec_tokenizer) + 1  # +1 is the trick that allows remove last token in decoder_x and 1-st in decoder_Y
         dec_vocab_size = len(dec_tokenizer.word_index) + 1
 
         # trainX = ds_X[:int(ds_X.shape[0] * self.ratio)]
@@ -66,6 +67,10 @@ class PrepareDataset():
         valY_dec = self.tokenize_and_pad(dec_tokenizer, ds_Y[int(ds_Y.shape[0] * self.ratio):], dec_seq_length)
         valX_dec = self.apply_mask(valY_dec, dec_input_mask_length)
 
-        return (trainX_enc, trainX_dec, trainY_dec, valX_enc, valX_dec, valY_dec, ds, enc_seq_length, dec_seq_length,
+        # when DataSet fed to train steps
+        # encoder input - doesn't need STARTT-token
+        # decoder input - requires STARTT-token (shift by 1 relative to encoder input) and full sentence
+        # decoder output - doesn't require START-token
+        return (trainX_enc[:, 1:], trainX_dec[:, :-1], trainY_dec[:, 1:], valX_enc[:, 1:], valX_dec[:, :-1], valY_dec[:, 1:], ds, enc_seq_length, dec_seq_length,
                 enc_vocab_size, dec_vocab_size, enc_tokenizer, dec_tokenizer)
 
