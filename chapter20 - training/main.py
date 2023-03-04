@@ -49,6 +49,7 @@ def accuracy_fcn(target, prediction):
     return tf.reduce_sum(accuracy) / tf.reduce_sum(inv_mask)
 
 
+# @function
 def train_step(model, optimizer, enc_x, dec_x, dec_Y):
     with tf.GradientTape() as tape:
         pred = model(enc_x, dec_x, training=True)
@@ -78,7 +79,7 @@ def test_lr_scheduler(d_model):
 
 
 def main():
-    batch = 32
+    batch = 64
     heads = 8
     d_k = 128
     d_v = 128
@@ -130,7 +131,7 @@ def main():
             valid_loss(loss)
             valid_accuracy(accuracy)
 
-        print(f"{epoch:03} {(time.time() - epoch_start_time):.0f}s: train loss/acc:{train_loss.result():.4f}/{train_accuracy.result():.4f}, valid loss/acc:{valid_loss.result():.4f}/{valid_accuracy.result():.4f}")
+        print(f"{epoch}/{epochs} ({(time.time() - epoch_start_time):.0f}s): train loss/acc:{train_loss.result():.4f}/{train_accuracy.result():.4f}, valid loss/acc:{valid_loss.result():.4f}/{valid_accuracy.result():.4f}")
 
 
         if epoch % 5 == 0:
