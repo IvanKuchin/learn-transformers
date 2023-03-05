@@ -1,3 +1,4 @@
+import os.path
 import time
 
 import tensorflow as tf
@@ -78,6 +79,11 @@ def test_lr_scheduler(d_model):
     return
 
 
+def PrepActions(dir_name):
+    if not os.path.isdir(dir_name):
+        os.mkdir(dir_name)
+
+
 def main():
     batch = 64
     heads = 8
@@ -88,6 +94,8 @@ def main():
     drop_rate = 0.1
     layers = 6
     epochs = 2
+
+    PrepActions("artifacts")
 
     prep = PrepareDataset()
     trainX_enc, trainX_dec, trainY_dec, valX_enc, valX_dec, valY_dec, ds, enc_seq_length, dec_seq_length, enc_vocab_size, dec_vocab_size, enc_tokenizer \

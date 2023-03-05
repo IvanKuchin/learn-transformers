@@ -4,7 +4,8 @@ import numpy as np
 
 class PrepareDataset():
     def __init__(self, **kwargs):
-        self.ratio = 0.9
+        self.ratio_valid = 0.8
+        self.ratio_test = 0.1
         self.reducer = 10_000
 
     def create_tokenizer(self, dataset):
@@ -30,6 +31,14 @@ class PrepareDataset():
         masked_data = data * mask
         return masked_data
 
+    def save_test_ds(self, ds):
+        np.savetxt("artifacts/test.txt", ds, fmt="%s")
+
+    def save_tokenizer(self, tokenizer, name):
+        with open(f"artifacts/tokenizer_{name}.pkl", "wb") as file:
+            pickle.dump(tokenizer, file)
+        return
+
     def __call__(self, fname, dec_input_mask_length, **kwargs):
         ds = pickle.load(open(fname, "rb"))
         ds = ds[:self.reducer]
@@ -44,10 +53,12 @@ class PrepareDataset():
         enc_tokenizer = self.create_tokenizer(ds_X)
         enc_seq_length = self.get_seq_length(ds_X, enc_tokenizer)
         enc_vocab_size = len(enc_tokenizer.word_index) + 1
+        self.save_tokenizer(enc_tokenizer, "enc")
 
         dec_tokenizer = self.create_tokenizer(ds_Y)
         dec_seq_length = self.get_seq_length(ds_Y, dec_tokenizer) + 1  # +1 is the trick that allows remove last token in decoder_x and 1-st in decoder_Y
         dec_vocab_size = len(dec_tokenizer.word_index) + 1
+        self.save_tokenizer(dec_tokenizer, "dec")
 
         # trainX = ds_X[:int(ds_X.shape[0] * self.ratio)]
         # trainX = enc_tokenizer.texts_to_sequences(trainX)
@@ -59,13 +70,15 @@ class PrepareDataset():
         # trainY = tf.keras.preprocessing.sequence.pad_sequences(trainY, maxlen=dec_seq_length, padding="post")
         # trainY = tf.convert_to_tensor(trainY)
 
-        trainX_enc = self.tokenize_and_pad(enc_tokenizer, ds_X[:int(ds_X.shape[0] * self.ratio)], enc_seq_length)
-        trainY_dec = self.tokenize_and_pad(dec_tokenizer, ds_Y[:int(ds_Y.shape[0] * self.ratio)], dec_seq_length)
+        trainX_enc = self.tokenize_and_pad(enc_tokenizer, ds_X[:int(ds_X.shape[0] * self.ratio_valid)], enc_seq_length)
+        trainY_dec = self.tokenize_and_pad(dec_tokenizer, ds_Y[:int(ds_Y.shape[0] * self.ratio_valid)], dec_seq_length)
         trainX_dec = self.apply_mask(trainY_dec, dec_input_mask_length)
 
-        valX_enc = self.tokenize_and_pad(enc_tokenizer, ds_X[int(ds_X.shape[0] * self.ratio):], enc_seq_length)
-        valY_dec = self.tokenize_and_pad(dec_tokenizer, ds_Y[int(ds_Y.shape[0] * self.ratio):], dec_seq_length)
+        valX_enc = self.tokenize_and_pad(enc_tokenizer, ds_X[int(ds_X.shape[0] * self.ratio_valid):int(ds_X.shape[0] * (self.ratio_valid + self.ratio_test))], enc_seq_length)
+        valY_dec = self.tokenize_and_pad(dec_tokenizer, ds_Y[int(ds_Y.shape[0] * self.ratio_valid):int(ds_Y.shape[0] * (self.ratio_valid + self.ratio_test))], dec_seq_length)
         valX_dec = self.apply_mask(valY_dec, dec_input_mask_length)
+
+        self.save_test_ds(ds[int(ds.shape[0] * (1-self.ratio_test)):])
 
         # when DataSet fed to train steps
         # encoder input - doesn't need STARTT-token
