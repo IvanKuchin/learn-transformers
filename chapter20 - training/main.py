@@ -99,7 +99,7 @@ def main():
 
     prep = PrepareDataset()
     trainX_enc, trainX_dec, trainY_dec, valX_enc, valX_dec, valY_dec, ds, enc_seq_length, dec_seq_length, enc_vocab_size, dec_vocab_size, enc_tokenizer \
-        , dec_tokenizer = prep("english-german-both.pkl", 12)  # number of tokens to keep as input to decoder
+        , dec_tokenizer = prep("dataset/english-german-both.pkl", 12)  # number of tokens to keep as input to decoder
 
     print(f"train x: {trainX_enc.shape}\ntrain Y: {trainY_dec.shape}\nvalidation x: {valX_enc.shape}\nvalidation Y: {valY_dec.shape}")
     print(f"{enc_seq_length=}\n{enc_vocab_size=}\n{dec_seq_length=}\n{dec_vocab_size=}")
