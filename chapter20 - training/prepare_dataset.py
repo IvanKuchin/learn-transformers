@@ -51,32 +51,35 @@ class PrepareDataset():
         ds_X, ds_Y = ds[:, 0], ds[:, 1]
 
         enc_tokenizer = self.create_tokenizer(ds_X)
-        enc_seq_length = self.get_seq_length(ds_X, enc_tokenizer)
+        enc_sentence_length = self.get_seq_length(ds_X, enc_tokenizer)
         enc_vocab_size = len(enc_tokenizer.word_index) + 1
         self.save_tokenizer(enc_tokenizer, "enc")
 
         dec_tokenizer = self.create_tokenizer(ds_Y)
-        dec_seq_length = self.get_seq_length(ds_Y, dec_tokenizer) + 1  # +1 is the trick that allows remove last token in decoder_x and 1-st in decoder_Y
+        dec_sentence_length = self.get_seq_length(ds_Y, dec_tokenizer) + 1  # +1 is the trick that allows removal of the last token in decoder_input and 1-st in decoder_output
         dec_vocab_size = len(dec_tokenizer.word_index) + 1
         self.save_tokenizer(dec_tokenizer, "dec")
 
         # trainX = ds_X[:int(ds_X.shape[0] * self.ratio)]
         # trainX = enc_tokenizer.texts_to_sequences(trainX)
-        # trainX = tf.keras.preprocessing.sequence.pad_sequences(trainX, maxlen=enc_seq_length, padding="post")
+        # trainX = tf.keras.preprocessing.sequence.pad_sequences(trainX, maxlen=enc_sentence_length, padding="post")
         # trainX = tf.convert_to_tensor(trainX)
 
         # trainY = ds_Y[:int(ds_Y.shape[0] * self.ratio)]
         # trainY = dec_tokenizer.texts_to_sequences(trainY)
-        # trainY = tf.keras.preprocessing.sequence.pad_sequences(trainY, maxlen=dec_seq_length, padding="post")
+        # trainY = tf.keras.preprocessing.sequence.pad_sequences(trainY, maxlen=dec_sentence_length, padding="post")
         # trainY = tf.convert_to_tensor(trainY)
 
-        trainX_enc = self.tokenize_and_pad(enc_tokenizer, ds_X[:int(ds_X.shape[0] * self.ratio_valid)], enc_seq_length)
-        trainY_dec = self.tokenize_and_pad(dec_tokenizer, ds_Y[:int(ds_Y.shape[0] * self.ratio_valid)], dec_seq_length)
+        trainX_enc = self.tokenize_and_pad(enc_tokenizer, ds_X[:int(ds_X.shape[0] * self.ratio_valid)], enc_sentence_length)
+        trainY_dec = self.tokenize_and_pad(dec_tokenizer, ds_Y[:int(ds_Y.shape[0] * self.ratio_valid)], dec_sentence_length)
         trainX_dec = self.apply_mask(trainY_dec, dec_input_mask_length)
 
-        valX_enc = self.tokenize_and_pad(enc_tokenizer, ds_X[int(ds_X.shape[0] * self.ratio_valid):int(ds_X.shape[0] * (self.ratio_valid + self.ratio_test))], enc_seq_length)
-        valY_dec = self.tokenize_and_pad(dec_tokenizer, ds_Y[int(ds_Y.shape[0] * self.ratio_valid):int(ds_Y.shape[0] * (self.ratio_valid + self.ratio_test))], dec_seq_length)
+        valX_enc = self.tokenize_and_pad(enc_tokenizer, ds_X[int(ds_X.shape[0] * self.ratio_valid):int(ds_X.shape[0] * (self.ratio_valid + self.ratio_test))], enc_sentence_length)
+        valY_dec = self.tokenize_and_pad(dec_tokenizer, ds_Y[int(ds_Y.shape[0] * self.ratio_valid):int(ds_Y.shape[0] * (self.ratio_valid + self.ratio_test))], dec_sentence_length)
         valX_dec = self.apply_mask(valY_dec, dec_input_mask_length)
+
+        enc_seq_length = enc_sentence_length - 1  # remove <START>-token
+        dec_seq_length = dec_sentence_length - 1  # read comment below that explains decrement
 
         self.save_test_ds(ds[int(ds.shape[0] * (1-self.ratio_test)):])
 
