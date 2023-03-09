@@ -6,7 +6,7 @@ class PrepareDataset():
     def __init__(self, **kwargs):
         self.ratio_valid = 0.8
         self.ratio_test = 0.1
-        self.reducer = 10_000
+        self.reducer = 1_000
 
     def create_tokenizer(self, dataset):
         tokenizer = tf.keras.preprocessing.text.Tokenizer()
