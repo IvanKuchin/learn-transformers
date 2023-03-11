@@ -3,10 +3,10 @@ import tensorflow as tf
 import numpy as np
 
 class PrepareDataset():
-    def __init__(self, **kwargs):
+    def __init__(self, reducer, **kwargs):
         self.ratio_valid = 0.8
         self.ratio_test = 0.1
-        self.reducer = 1_000
+        self.reducer = reducer
 
     def create_tokenizer(self, dataset):
         tokenizer = tf.keras.preprocessing.text.Tokenizer()
@@ -21,7 +21,7 @@ class PrepareDataset():
     def tokenize_and_pad(self, tokenizer, ds, seq_len):
         ds = tokenizer.texts_to_sequences(ds)
         ds = tf.keras.preprocessing.sequence.pad_sequences(ds, maxlen=seq_len, padding="post")
-        ds = tf.convert_to_tensor(ds)
+        ds = tf.convert_to_tensor(ds, dtype=tf.float32)
         return ds
 
     def apply_mask(self, data, mask_length):
@@ -39,7 +39,7 @@ class PrepareDataset():
             pickle.dump(tokenizer, file)
         return
 
-    def __call__(self, fname, dec_input_mask_length, **kwargs):
+    def __call__(self, fname, **kwargs):
         ds = pickle.load(open(fname, "rb"))
         ds = ds[:self.reducer]
         for i in range(ds.shape[0]):
@@ -72,11 +72,13 @@ class PrepareDataset():
 
         trainX_enc = self.tokenize_and_pad(enc_tokenizer, ds_X[:int(ds_X.shape[0] * self.ratio_valid)], enc_sentence_length)
         trainY_dec = self.tokenize_and_pad(dec_tokenizer, ds_Y[:int(ds_Y.shape[0] * self.ratio_valid)], dec_sentence_length)
-        trainX_dec = self.apply_mask(trainY_dec, dec_input_mask_length)
+        trainX_dec = trainY_dec
+        # trainX_dec = self.apply_mask(trainY_dec, dec_input_mask_length)
 
         valX_enc = self.tokenize_and_pad(enc_tokenizer, ds_X[int(ds_X.shape[0] * self.ratio_valid):int(ds_X.shape[0] * (self.ratio_valid + self.ratio_test))], enc_sentence_length)
         valY_dec = self.tokenize_and_pad(dec_tokenizer, ds_Y[int(ds_Y.shape[0] * self.ratio_valid):int(ds_Y.shape[0] * (self.ratio_valid + self.ratio_test))], dec_sentence_length)
-        valX_dec = self.apply_mask(valY_dec, dec_input_mask_length)
+        valX_dec = valY_dec
+        # valX_dec = self.apply_mask(valY_dec, dec_input_mask_length)
 
         enc_seq_length = enc_sentence_length - 1  # remove <START>-token
         dec_seq_length = dec_sentence_length - 1  # read comment below that explains decrement

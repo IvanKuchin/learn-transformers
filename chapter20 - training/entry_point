@@ -1,2 +1,2 @@
 import tensorflow_cloud as tfc
-tfc.run(entry_point='main.py')
+tfc.run(entry_point='train.py')

@@ -55,7 +55,8 @@ class TransformerModel(Model):
 
         return mask
 
-    def call(self, encoder_input, decoder_input, training):
+    def call(self, inputs, training=True):
+        encoder_input, decoder_input = inputs
 
         # Create padding mask to mask the encoder inputs and the encoder
         # outputs in the decoder
