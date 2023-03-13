@@ -97,7 +97,6 @@ def PrepActions(dir_name):
 
 
 def main():
-    is_remote = False  # tfc.remote()
     batch = 64
     heads = 8
     d_k = 128
@@ -107,25 +106,13 @@ def main():
     drop_rate = 0.1
     layers = 6
     epochs = 2
+
+    is_remote = False  # tfc.remote()
     fit_verbosity = 1
+    checkpoint_path = ""
+    tensorboard_path = ""
 
     PrepActions("artifacts")
-
-    GCP_BUCKET = "cvs-gcp-csdac-ml-bucket"
-    MODEL_PATH = "transformers"
-    checkpoint_path = os.path.join("gs://", GCP_BUCKET, MODEL_PATH, "checkpoints", "save_at_{epoch}")
-    tensorboard_path = os.path.join(
-        "gs://", GCP_BUCKET, MODEL_PATH, "logs", datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    )
-
-    callbacks = [
-        # TensorBoard will store logs for each epoch and graph performance for us.
-        tf.keras.callbacks.TensorBoard(log_dir=tensorboard_path, histogram_freq=1),
-        # ModelCheckpoint will save models after each epoch for retrieval later.
-        tf.keras.callbacks.ModelCheckpoint(checkpoint_path),
-        # EarlyStopping will terminate training when val_loss ceases to improve.
-        tf.keras.callbacks.EarlyStopping(monitor="val_loss", patience=3),
-    ]
 
     prep = PrepareDataset()
     trainX_enc, trainX_dec, trainY_dec, valX_enc, valX_dec, valY_dec, ds, enc_seq_length, dec_seq_length, enc_vocab_size, dec_vocab_size, enc_tokenizer \
@@ -144,10 +131,26 @@ def main():
     if is_remote:
         epochs = 200
         fit_verbosity = 2
+        GCP_BUCKET = "cvs-gcp-csdac-ml-bucket"
+        MODEL_PATH = "transformers"
+        checkpoint_path = os.path.join("gs://", GCP_BUCKET, MODEL_PATH, "checkpoints", "save_at_{epoch}")
+        tensorboard_path = os.path.join(
+            "gs://", GCP_BUCKET, MODEL_PATH, "logs", datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        )
     else:
-        callbacks = None
         train_ds = train_ds.take(10)
         valid_ds = valid_ds.take(1)
+        checkpoint_path = os.path.join("checkpoints", "save_at_{epoch}")
+        tensorboard_path = os.path.join("logs", datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
+
+    callbacks = [
+        # TensorBoard will store logs for each epoch and graph performance for us.
+        tf.keras.callbacks.TensorBoard(log_dir=tensorboard_path, histogram_freq=1),
+        # ModelCheckpoint will save models after each epoch for retrieval later.
+        tf.keras.callbacks.ModelCheckpoint(checkpoint_path),
+        # EarlyStopping will terminate training when val_loss ceases to improve.
+        tf.keras.callbacks.EarlyStopping(monitor="val_loss", patience=3),
+    ]
 
     # optimizer = tf.keras.optimizers.Adam(LRScheduler(d_model, 4000), 0.9, 0.98, 1e-9)
     optimizer = tf.keras.optimizers.Adam()
