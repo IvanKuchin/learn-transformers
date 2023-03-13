@@ -3,8 +3,8 @@ import os.path
 import time
 
 import tensorflow as tf
-import tensorflow_cloud as tfc
-import numpy as np
+# import tensorflow_cloud as tfc
+# import numpy as np
 from prepare_dataset import PrepareDataset
 from model import TransformerModel
 
@@ -16,6 +16,7 @@ class LRScheduler(tf.keras.optimizers.schedules.LearningRateSchedule):
         self.warmup_steps = warmup_steps
 
     def __call__(self, step, **kwargs):
+        step = tf.cast(step, dtype=tf.float32)
         arg1 = step ** -0.5
         arg2 = step * (self.warmup_steps ** -1.5)
         lr = (self.d_model ** -0.5) * tf.math.minimum(arg1, arg2)
@@ -65,6 +66,7 @@ def train_step(model, optimizer, enc_x, dec_x, dec_Y):
 
 
 def test_loss_and_accuracy():
+    print("--- test_loss_and_accuracy")
     y_pred = tf.constant([[[0, 0, 0, 0.05, 0.95], [0, 0, 0.8, 0.1, 0.1], [0, 0.95, 0, 0.05, 0], [0, 0, 0.1, 0.8, 0.1],
                            [0.8, 0, 0.1, 0, 0.1], [0.6, 0.1, 0.1, 0.1, 0.1]]])
     y_true = tf.constant([[4, 2, 1, 3, 0, 0]])  # matching to y_pred
@@ -75,10 +77,18 @@ def test_loss_and_accuracy():
 
 
 def test_lr_scheduler(d_model):
+    print("--- test_lr_scheduler")
     lr_schedule = LRScheduler(d_model, 4000)
     for step in range(1, 40000, 1000):
         print(f"{step:6}: {lr_schedule(step)}")
     return
+
+
+def test_ds(ds):
+    print("--- test_ds")
+    for i, entry in enumerate(ds):
+        (x1, x2), Y = entry
+        print(f"{i}) {x1.shape=}, {x2.shape=}, {Y.shape=}")
 
 
 def PrepActions(dir_name):
@@ -87,6 +97,7 @@ def PrepActions(dir_name):
 
 
 def main():
+    is_remote = False  # tfc.remote()
     batch = 64
     heads = 8
     d_k = 128
@@ -96,16 +107,15 @@ def main():
     drop_rate = 0.1
     layers = 6
     epochs = 2
-    reducer = 1_000
     fit_verbosity = 1
 
     PrepActions("artifacts")
 
     GCP_BUCKET = "cvs-gcp-csdac-ml-bucket"
     MODEL_PATH = "transformers"
-    checkpoint_path = os.path.join("gs://", GCP_BUCKET, MODEL_PATH, "save_at_{epoch}")
+    checkpoint_path = os.path.join("gs://", GCP_BUCKET, MODEL_PATH, "checkpoints", "save_at_{epoch}")
     tensorboard_path = os.path.join(
-        "gs://", GCP_BUCKET, "logs", datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        "gs://", GCP_BUCKET, MODEL_PATH, "logs", datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     )
 
     callbacks = [
@@ -117,32 +127,35 @@ def main():
         tf.keras.callbacks.EarlyStopping(monitor="val_loss", patience=3),
     ]
 
-    if tfc.remote():
-        epochs = 200
-        reducer = 10_000
-        fit_verbosity = 2
-    else:
-        callbacks = None
-
-    prep = PrepareDataset(reducer=reducer)
+    prep = PrepareDataset()
     trainX_enc, trainX_dec, trainY_dec, valX_enc, valX_dec, valY_dec, ds, enc_seq_length, dec_seq_length, enc_vocab_size, dec_vocab_size, enc_tokenizer \
         , dec_tokenizer = prep("dataset/english-german-both.pkl")
 
-    print(f"train x: {trainX_enc.shape}\ntrain Y: {trainY_dec.shape}\nvalidation x: {valX_enc.shape}\nvalidation Y: {valY_dec.shape}")
+    print(
+        f"train x: {trainX_enc.shape}\ntrain Y: {trainY_dec.shape}\nvalidation x: {valX_enc.shape}\nvalidation Y: {valY_dec.shape}")
     print(f"{enc_seq_length=}\n{enc_vocab_size=}\n{dec_seq_length=}\n{dec_vocab_size=}")
     # test_loss_and_accuracy()
     # test_lr_scheduler(d_model)
 
     train_ds = tf.data.Dataset.from_tensor_slices(((trainX_enc, trainX_dec), trainY_dec)).batch(batch)
-    valid_ds = tf.data.Dataset.from_tensor_slices(((valX_enc, valX_dec), valY_dec)).batch(8*batch)
+    valid_ds = tf.data.Dataset.from_tensor_slices(((valX_enc, valX_dec), valY_dec)).batch(8 * batch)
+    # test_ds(train_ds)
 
-    optimizer = tf.keras.optimizers.Adam(LRScheduler(d_model, 4000), 0.9, 0.98, 1e-9)
+    if is_remote:
+        epochs = 200
+        fit_verbosity = 2
+    else:
+        callbacks = None
+        train_ds = train_ds.take(10)
+        valid_ds = valid_ds.take(1)
+
+    # optimizer = tf.keras.optimizers.Adam(LRScheduler(d_model, 4000), 0.9, 0.98, 1e-9)
+    optimizer = tf.keras.optimizers.Adam()
     model = TransformerModel(enc_vocab_size, dec_vocab_size, enc_seq_length, dec_seq_length, heads, d_k, d_v, d_model,
                              d_ff, layers, drop_rate)
 
     model.compile(optimizer=optimizer, loss=loss_fcn, metrics=[accuracy_fcn])
     hist_obj = model.fit(train_ds, epochs=epochs, validation_data=valid_ds, verbose=fit_verbosity, callbacks=callbacks)
-
 
     # chkpt = tf.train.Checkpoint(model=model, optimizer=optimizer)
     # chkpt_mgr = tf.train.CheckpointManager(chkpt, "./checkpoint", max_to_keep=10)

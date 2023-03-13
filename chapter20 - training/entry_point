@@ -1,2 +1,20 @@
 import tensorflow_cloud as tfc
-tfc.run(entry_point='train.py')
+
+TF_GPU_IMAGE= "tensorflow/tensorflow:latest-gpu"
+GCP_BUCKET = "cvs-gcp-csdac-ml-bucket"
+
+tfc.run(
+    entry_point='train.py',
+    requirements_txt='requirements.txt',
+    docker_config=tfc.DockerConfig(
+        parent_image=TF_GPU_IMAGE,
+        # image_build_bucket=GCP_BUCKET
+      ),
+    chief_config=tfc.MachineConfig(
+        cpu_cores=8,
+        memory=30,
+        accelerator_type=tfc.AcceleratorType.NVIDIA_TESLA_T4,
+        accelerator_count=1,
+    ),
+    worker_count=0
+  )
