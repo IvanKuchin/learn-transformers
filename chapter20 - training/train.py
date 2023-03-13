@@ -147,7 +147,7 @@ def main():
         # TensorBoard will store logs for each epoch and graph performance for us.
         tf.keras.callbacks.TensorBoard(log_dir=tensorboard_path, histogram_freq=1),
         # ModelCheckpoint will save models after each epoch for retrieval later.
-        tf.keras.callbacks.ModelCheckpoint(checkpoint_path),
+        # tf.keras.callbacks.ModelCheckpoint(checkpoint_path),
         # EarlyStopping will terminate training when val_loss ceases to improve.
         tf.keras.callbacks.EarlyStopping(monitor="val_loss", patience=3),
     ]
@@ -160,8 +160,10 @@ def main():
     model.compile(optimizer=optimizer, loss=loss_fcn, metrics=[accuracy_fcn])
     hist_obj = model.fit(train_ds, epochs=epochs, validation_data=valid_ds, verbose=fit_verbosity, callbacks=callbacks)
 
-    # chkpt = tf.train.Checkpoint(model=model, optimizer=optimizer)
-    # chkpt_mgr = tf.train.CheckpointManager(chkpt, "./checkpoint", max_to_keep=10)
+    chkpt = tf.train.Checkpoint(model=model, optimizer=optimizer)
+    chkpt_mgr = tf.train.CheckpointManager(chkpt, "./checkpoints", max_to_keep=10)
+    chkpt_mgr.save()
+
     #
     # train_loss = tf.keras.metrics.Mean(name="train_loss")
     # train_accuracy = tf.keras.metrics.Mean(name="train_metrics")
