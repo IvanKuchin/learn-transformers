@@ -107,10 +107,11 @@ def main():
     layers = 6
     epochs = 2
 
-    is_remote = False  # tfc.remote()
+    is_remote = (os.environ.get("TF_KERAS_RUNNING_REMOTELY") == "1")  # tfc.remote()
     fit_verbosity = 1
     checkpoint_path = ""
     tensorboard_path = ""
+    model_save_path = ""
 
     PrepActions("artifacts")
 
@@ -124,24 +125,32 @@ def main():
     # test_loss_and_accuracy()
     # test_lr_scheduler(d_model)
 
-    train_ds = tf.data.Dataset.from_tensor_slices(((trainX_enc, trainX_dec), trainY_dec)).batch(batch)
-    valid_ds = tf.data.Dataset.from_tensor_slices(((valX_enc, valX_dec), valY_dec)).batch(8 * batch)
+    options = tf.data.Options()
+    options.deterministic = False
+    train_ds = tf.data.Dataset.from_tensor_slices(((trainX_enc, trainX_dec), trainY_dec)).batch(4 * batch).prefetch(tf.data.experimental.AUTOTUNE)
+    valid_ds = tf.data.Dataset.from_tensor_slices(((valX_enc, valX_dec), valY_dec)).batch(8 * batch).prefetch(tf.data.experimental.AUTOTUNE)
     # test_ds(train_ds)
 
+    # strategy = tf.distribute.MirroredStrategy()
+    # train_ds = strategy.experimental_distribute_dataset(train_ds)
+    # valid_ds = strategy.experimental_distribute_dataset(valid_ds)
+
     if is_remote:
-        epochs = 200
+        epochs = 20
         fit_verbosity = 2
         GCP_BUCKET = "cvs-gcp-csdac-ml-bucket"
         MODEL_PATH = "transformers"
-        checkpoint_path = os.path.join("gs://", GCP_BUCKET, MODEL_PATH, "checkpoints", "save_at_{epoch}")
+        checkpoint_path = os.path.join("gs://", GCP_BUCKET, MODEL_PATH, "checkpoints", f"save_at_{epochs}")
         tensorboard_path = os.path.join(
             "gs://", GCP_BUCKET, MODEL_PATH, "logs", datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         )
+        model_save_path = os.path.join("gs://", GCP_BUCKET, MODEL_PATH, "model/model.chkpt")
     else:
         train_ds = train_ds.take(10)
         valid_ds = valid_ds.take(1)
-        checkpoint_path = os.path.join("checkpoints", "save_at_{epoch}")
+        checkpoint_path = os.path.join("checkpoints", f"save_at_{epochs}")
         tensorboard_path = os.path.join("logs", datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
+        model_save_path = os.path.join("model/model.chkpt")
 
     callbacks = [
         # TensorBoard will store logs for each epoch and graph performance for us.
@@ -149,7 +158,7 @@ def main():
         # ModelCheckpoint will save models after each epoch for retrieval later.
         # tf.keras.callbacks.ModelCheckpoint(checkpoint_path),
         # EarlyStopping will terminate training when val_loss ceases to improve.
-        tf.keras.callbacks.EarlyStopping(monitor="val_loss", patience=3),
+        # tf.keras.callbacks.EarlyStopping(monitor="val_loss", patience=3),
     ]
 
     # optimizer = tf.keras.optimizers.Adam(LRScheduler(d_model, 4000), 0.9, 0.98, 1e-9)
@@ -160,9 +169,7 @@ def main():
     model.compile(optimizer=optimizer, loss=loss_fcn, metrics=[accuracy_fcn])
     hist_obj = model.fit(train_ds, epochs=epochs, validation_data=valid_ds, verbose=fit_verbosity, callbacks=callbacks)
 
-    chkpt = tf.train.Checkpoint(model=model, optimizer=optimizer)
-    chkpt_mgr = tf.train.CheckpointManager(chkpt, "./checkpoints", max_to_keep=10)
-    chkpt_mgr.save()
+    model.save_weights(model_save_path)
 
     #
     # train_loss = tf.keras.metrics.Mean(name="train_loss")

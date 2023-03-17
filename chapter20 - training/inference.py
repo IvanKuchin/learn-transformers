@@ -27,7 +27,8 @@ class Translate(tf.Module):
         dec_input = tf.keras.preprocessing.sequence.pad_sequences(dec_input, maxlen=self.dec_seq_length, padding="post")
         dec_input = tf.convert_to_tensor(dec_input)
 
-        pred = self.model(enc_input, dec_input, training=False)
+        inputs = (enc_input, dec_input)
+        pred = self.model(inputs, training=False)
         pred = tf.argmax(pred, axis=-1)
         return pred
 
@@ -43,11 +44,22 @@ class Translate(tf.Module):
         dec_input.write(0, start_token)
 
         for i in range(self.dec_seq_length):
-            predict = self.model(enc_input, tf.transpose(dec_input.stack())[0])
+            inputs = (enc_input, tf.transpose(dec_input.stack())[0])
+            predict = self.model(inputs)
             predict = tf.argmax(predict, axis=-1)
             dec_input.write(i+1, predict[:, -1, tf.newaxis])
 
         return tf.transpose(dec_input.stack())[0]
+
+
+    def Decode(self, sentences):
+        result = ""
+        for sentence in sentences:
+            for token in sentence:
+                result += self.dec_tokenizer.index_word[token] + " "
+            result += " --- "
+        return result
+
 
     def __call__(self, sentences):
         dec_input = []
@@ -65,6 +77,10 @@ class Translate(tf.Module):
         print(f"{enc_input=}")
         print(f"{pred1=}")
         print(f"{pred2=}")
+        translation1 = self.Decode(pred1.numpy())
+        translation2 = self.Decode(pred2.numpy()[:, 1:])
+        print(f"{translation1=}")
+        print(f"{translation2=}")
 
 def main():
     heads = 8
