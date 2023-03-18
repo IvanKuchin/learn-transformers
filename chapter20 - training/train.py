@@ -93,7 +93,8 @@ def test_ds(ds):
 
 def make_a_prediction(message, model, valX_enc, valX_dec, valY_dec):
     print(message)
-    preds = model.predict((valX_enc[0:1], valX_dec[0:1]), verbose=0)
+    # preds = model.predict((valX_enc[0:1], valX_dec[0:1]), verbose=0)
+    preds = model((valX_enc[0:1], valX_dec[0:1]))
     print(valX_enc[0:1].numpy())
     print(valX_dec[0:1].numpy())
     print(valY_dec[0:1].numpy())
@@ -135,9 +136,14 @@ def main():
     # test_loss_and_accuracy()
     # test_lr_scheduler(d_model)
 
+    if is_remote:
+        num_workers = 4
+    else:
+        num_workers = 1
+
     options = tf.data.Options()
     options.deterministic = False
-    train_ds = tf.data.Dataset.from_tensor_slices(((trainX_enc, trainX_dec), trainY_dec)).batch(4 * batch).cache().prefetch(tf.data.experimental.AUTOTUNE)
+    train_ds = tf.data.Dataset.from_tensor_slices(((trainX_enc, trainX_dec), trainY_dec)).batch(num_workers * batch).cache().prefetch(tf.data.experimental.AUTOTUNE)
     valid_ds = tf.data.Dataset.from_tensor_slices(((valX_enc, valX_dec), valY_dec)).batch(8 * batch).cache().prefetch(tf.data.experimental.AUTOTUNE)
     # test_ds(train_ds)
 
@@ -162,7 +168,8 @@ def main():
         valid_ds = valid_ds.take(1)
         checkpoint_path = os.path.join("checkpoints", f"save_at_{epochs}")
         tensorboard_path = os.path.join("logs", datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
-        model_save_path = os.path.join("model", "0003")
+        model_save_path = os.path.join("model", "0001")
+
 
     callbacks = [
         # TensorBoard will store logs for each epoch and graph performance for us.
@@ -181,15 +188,15 @@ def main():
     model_compiled.compile(optimizer=optimizer, loss=loss_fcn, metrics=[accuracy_fcn])
     # make_a_prediction("---- pre-training model_compiled", model_compiled, valX_enc, valX_dec, valY_dec)
     hist_obj = model_compiled.fit(train_ds, epochs=epochs, validation_data=valid_ds, verbose=fit_verbosity, callbacks=callbacks)
-    model_compiled.save_weights(model_save_path)
-    # make_a_prediction("---- post-training model_compiled", model_compiled, valX_enc, valX_dec, valY_dec)
+    model_compiled.save(model_save_path)
+    make_a_prediction("---- post-training model_compiled", model_compiled, valX_enc, valX_dec, valY_dec)
 
-    # ### check on a brand new model
+    ### check on a brand new model
     # model1_compiled = TransformerModel(enc_vocab_size, dec_vocab_size, enc_seq_length, dec_seq_length, heads, d_k, d_v, d_model,
     #                          d_ff, layers, rate=0)
     # make_a_prediction("---- pre-training model1_compiled", model1_compiled, valX_enc, valX_dec, valY_dec)
-    # model1_compiled.load_weights(model_save_path)
-    # make_a_prediction("---- predictions with loaded model1_compiled", model1_compiled, valX_enc, valX_dec, valY_dec)
+    model1_compiled = tf.saved_model.load(model_save_path)
+    make_a_prediction("---- predictions with loaded model1_compiled", model1_compiled, valX_enc, valX_dec, valY_dec)
 
 
     ####
