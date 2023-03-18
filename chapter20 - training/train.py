@@ -93,7 +93,7 @@ def test_ds(ds):
 
 def make_a_prediction(message, model, valX_enc, valX_dec, valY_dec):
     print(message)
-    preds = model.predict((valX_enc[0:1], valX_dec[0:1]))
+    preds = model.predict((valX_enc[0:1], valX_dec[0:1]), verbose=0)
     print(valX_enc[0:1].numpy())
     print(valX_dec[0:1].numpy())
     print(valY_dec[0:1].numpy())
@@ -115,7 +115,7 @@ def main():
     d_ff = 2048
     drop_rate = 0.1
     layers = 6
-    epochs = 2
+    epochs = 0
 
     is_remote = (os.environ.get("TF_KERAS_RUNNING_REMOTELY") == "1")  # tfc.remote()
     fit_verbosity = 1
@@ -137,8 +137,8 @@ def main():
 
     options = tf.data.Options()
     options.deterministic = False
-    train_ds = tf.data.Dataset.from_tensor_slices(((trainX_enc, trainX_dec), trainY_dec)).batch(4 * batch).prefetch(tf.data.experimental.AUTOTUNE)
-    valid_ds = tf.data.Dataset.from_tensor_slices(((valX_enc, valX_dec), valY_dec)).batch(8 * batch).prefetch(tf.data.experimental.AUTOTUNE)
+    train_ds = tf.data.Dataset.from_tensor_slices(((trainX_enc, trainX_dec), trainY_dec)).batch(4 * batch).cache().prefetch(tf.data.experimental.AUTOTUNE)
+    valid_ds = tf.data.Dataset.from_tensor_slices(((valX_enc, valX_dec), valY_dec)).batch(8 * batch).cache().prefetch(tf.data.experimental.AUTOTUNE)
     # test_ds(train_ds)
 
     # strategy = tf.distribute.MirroredStrategy()
@@ -146,7 +146,7 @@ def main():
     # valid_ds = strategy.experimental_distribute_dataset(valid_ds)
 
     if is_remote:
-        epochs = 20
+        epochs = 40
         fit_verbosity = 2
         GCP_BUCKET = "cvs-gcp-csdac-ml-bucket"
         MODEL_PATH = "transformers"
@@ -156,6 +156,8 @@ def main():
         )
         model_save_path = os.path.join("gs://", GCP_BUCKET, MODEL_PATH, "model/model.chkpt")
     else:
+        epochs = 2
+        fit_verbosity = 1
         train_ds = train_ds.take(10)
         valid_ds = valid_ds.take(1)
         checkpoint_path = os.path.join("checkpoints", f"save_at_{epochs}")
@@ -172,74 +174,74 @@ def main():
     ]
 
     # optimizer = tf.keras.optimizers.Adam(LRScheduler(d_model, 4000), 0.9, 0.98, 1e-9)
-    optimizer = tf.keras.optimizers.Adam()
+    optimizer = tf.keras.optimizers.Adam(learning_rate=0.0001)
     model_compiled = TransformerModel(enc_vocab_size, dec_vocab_size, enc_seq_length, dec_seq_length, heads, d_k, d_v, d_model,
                              d_ff, layers, drop_rate)
 
     model_compiled.compile(optimizer=optimizer, loss=loss_fcn, metrics=[accuracy_fcn])
-    make_a_prediction("---- predictions with empty model_compiled", model_compiled, valX_enc, valX_dec, valY_dec)
+    # make_a_prediction("---- pre-training model_compiled", model_compiled, valX_enc, valX_dec, valY_dec)
     hist_obj = model_compiled.fit(train_ds, epochs=epochs, validation_data=valid_ds, verbose=fit_verbosity, callbacks=callbacks)
     model_compiled.save_weights(model_save_path)
+    # make_a_prediction("---- post-training model_compiled", model_compiled, valX_enc, valX_dec, valY_dec)
 
-    make_a_prediction("---- predictions with trained model_compiled", model_compiled, valX_enc, valX_dec, valY_dec)
-
-    model1_compiled = TransformerModel(enc_vocab_size, dec_vocab_size, enc_seq_length, dec_seq_length, heads, d_k, d_v, d_model,
-                             d_ff, layers, rate=0)
-    make_a_prediction("---- predictions with empty model1_compiled", model1_compiled, valX_enc, valX_dec, valY_dec)
-    model1_compiled.load_weights(model_save_path)
-    model1_compiled.load_weights(f"weights/0001.ckpt")
-    make_a_prediction("---- predictions with loaded model1_compiled", model1_compiled, valX_enc, valX_dec, valY_dec)
-
-
-    model_build = TransformerModel(enc_vocab_size, dec_vocab_size, enc_seq_length, dec_seq_length, heads, d_k, d_v, d_model,
-                             d_ff, layers, drop_rate)
-    make_a_prediction("---- predictions with empty model_build", model_build, valX_enc, valX_dec, valY_dec)
-
-    # Create a checkpoint object and manager to manage multiple checkpoints
-    ckpt = tf.train.Checkpoint(model=model_build, optimizer=optimizer)
-    ckpt_manager = tf.train.CheckpointManager(ckpt, "./checkpoints", max_to_keep=None)
-
-    train_loss = tf.keras.metrics.Mean(name="train_loss")
-    train_accuracy = tf.keras.metrics.Mean(name="train_metrics")
-    valid_loss = tf.keras.metrics.Mean(name="train_loss")
-    valid_accuracy = tf.keras.metrics.Mean(name="train_metrics")
-    for epoch in range(epochs):
-        epoch_start_time = time.time()
-        train_loss.reset_states()
-        train_accuracy.reset_states()
-        valid_loss.reset_states()
-        valid_accuracy.reset_states()
-
-        for i, ((trainX_enc, trainX_dec), trainY_dec) in enumerate(train_ds):
-            loss, accuracy = train_step(model_build, optimizer, trainX_enc, trainX_dec, trainY_dec)
-            train_loss(loss)
-            train_accuracy(accuracy)
-
-        for i, ((valX_enc, valX_dec), valY_dec) in enumerate(valid_ds):
-            predict = model_build((valX_enc, valX_dec), training=False)
-            loss = loss_fcn(valY_dec, predict)
-            accuracy = accuracy_fcn(valY_dec, predict)
-            valid_loss(loss)
-            valid_accuracy(accuracy)
-
-        print(f"{epoch}/{epochs} ({(time.time() - epoch_start_time):.0f}s): train loss/acc:{train_loss.result():.4f}/{train_accuracy.result():.4f}, valid loss/acc:{valid_loss.result():.4f}/{valid_accuracy.result():.4f}")
+    # ### check on a brand new model
+    # model1_compiled = TransformerModel(enc_vocab_size, dec_vocab_size, enc_seq_length, dec_seq_length, heads, d_k, d_v, d_model,
+    #                          d_ff, layers, rate=0)
+    # make_a_prediction("---- pre-training model1_compiled", model1_compiled, valX_enc, valX_dec, valY_dec)
+    # model1_compiled.load_weights(model_save_path)
+    # make_a_prediction("---- predictions with loaded model1_compiled", model1_compiled, valX_enc, valX_dec, valY_dec)
 
 
-        if epoch % 1 == 0:
-            # save_path = chkpt_mgr.save()   # TF save mechanism
-            # print(f"{epoch=}: save checkpoint {save_path}")
-            model_build.save_weights(f"weights/{epoch:04}.ckpt")  # Keras save mechanism
+    ####
+    #### training using custom training loop
+    ####
+    # model_build = TransformerModel(enc_vocab_size, dec_vocab_size, enc_seq_length, dec_seq_length, heads, d_k, d_v, d_model,
+    #                          d_ff, layers, drop_rate)
+    # make_a_prediction("---- pre-training model_build", model_build, valX_enc, valX_dec, valY_dec)
+    #
+    # # Create a checkpoint object and manager to manage multiple checkpoints
+    # ckpt = tf.train.Checkpoint(model=model_build, optimizer=optimizer)
+    # ckpt_manager = tf.train.CheckpointManager(ckpt, "./checkpoints", max_to_keep=None)
+    #
+    # train_loss = tf.keras.metrics.Mean(name="train_loss")
+    # train_accuracy = tf.keras.metrics.Mean(name="train_metrics")
+    # valid_loss = tf.keras.metrics.Mean(name="train_loss")
+    # valid_accuracy = tf.keras.metrics.Mean(name="train_metrics")
+    # for epoch in range(epochs):
+    #     epoch_start_time = time.time()
+    #     train_loss.reset_states()
+    #     train_accuracy.reset_states()
+    #     valid_loss.reset_states()
+    #     valid_accuracy.reset_states()
+    #
+    #     for i, ((trainX_enc, trainX_dec), trainY_dec) in enumerate(train_ds):
+    #         loss, accuracy = train_step(model_build, optimizer, trainX_enc, trainX_dec, trainY_dec)
+    #         train_loss(loss)
+    #         train_accuracy(accuracy)
+    #
+    #     for i, ((x_enc, x_dec), y_dec) in enumerate(valid_ds):
+    #         predict = model_build((x_enc, x_dec), training=False)
+    #         loss = loss_fcn(y_dec, predict)
+    #         accuracy = accuracy_fcn(y_dec, predict)
+    #         valid_loss(loss)
+    #         valid_accuracy(accuracy)
+    #
+    #     print(f"{epoch}/{epochs} ({(time.time() - epoch_start_time):.0f}s): train loss/acc:{train_loss.result():.4f}/{train_accuracy.result():.4f}, valid loss/acc:{valid_loss.result():.4f}/{valid_accuracy.result():.4f}")
+    #
+    #
+    #     if epoch % 1 == 0:
+    #         # save_path = chkpt_mgr.save()   # TF save mechanism
+    #         # print(f"{epoch=}: save checkpoint {save_path}")
+    #         model_build.save_weights(f"weights/{epoch:04}.ckpt")  # Keras save mechanism
+    #
+    # make_a_prediction("---- post-training model_build", model_build, valX_enc, valX_dec, valY_dec)
 
-
-    make_a_prediction("---- predictions with trained model_build", model_build, valX_enc, valX_dec, valY_dec)
-
-
-    model1 = TransformerModel(enc_vocab_size, dec_vocab_size, enc_seq_length, dec_seq_length, heads, d_k, d_v, d_model,
-                             d_ff, layers, rate=0)
-    make_a_prediction("---- predictions with empty model1", model1, valX_enc, valX_dec, valY_dec)
-    # model1.load_weights(model_save_path)
-    model1.load_weights(f"weights/0001.ckpt")
-    make_a_prediction("---- predictions with loaded model1", model1, valX_enc, valX_dec, valY_dec)
+    #### check on a brand new model
+    # model1 = TransformerModel(enc_vocab_size, dec_vocab_size, enc_seq_length, dec_seq_length, heads, d_k, d_v, d_model,
+    #                          d_ff, layers, rate=0)
+    # make_a_prediction("---- pre-training model1", model1, valX_enc, valX_dec, valY_dec)
+    # model1.load_weights(f"weights/{epochs-1:04}.ckpt")
+    # make_a_prediction("---- predictions with loaded model1", model1, valX_enc, valX_dec, valY_dec)
 
     return
 
