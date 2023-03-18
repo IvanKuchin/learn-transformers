@@ -23,7 +23,7 @@ class DotProductAttention(Layer):
         return matmul(weights, values)
 
 # Implementing the Multi-Head Attention
-class MultiHeadAttention(Layer):
+class MyMultiHeadAttention(Layer):
     def __init__(self, h, d_k, d_v, d_model, **kwargs):
         super().__init__(**kwargs)
         self.attention = DotProductAttention()  # Scaled dot product attention

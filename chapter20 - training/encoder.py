@@ -1,5 +1,5 @@
 from tensorflow.keras.layers import LayerNormalization, Layer, Dense, ReLU, Dropout
-from multihead_attention import MultiHeadAttention
+from multihead_attention import MyMultiHeadAttention
 from positional_encoding import PositionEmbeddingFixedWeights
 import tensorflow as tf
 
@@ -34,7 +34,7 @@ class FeedForward(Layer):
 class EncoderLayer(tf.keras.layers.Layer):
     def __init__(self, h, d_k, d_v, d_model, d_ff, rate, **kwargs):
         super().__init__(**kwargs)
-        self.multihead_attention = MultiHeadAttention(h, d_k, d_v, d_model)
+        self.multihead_attention = MyMultiHeadAttention(h, d_k, d_v, d_model)
         self.dropout1 = Dropout(rate)
         self.add_norm1 = AddNormalization()
         self.feed_forward = FeedForward(d_ff, d_model)

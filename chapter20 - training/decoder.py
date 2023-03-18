@@ -1,5 +1,5 @@
 from tensorflow.keras.layers import Layer, Dropout
-from multihead_attention import MultiHeadAttention
+from multihead_attention import MyMultiHeadAttention
 from positional_encoding import PositionEmbeddingFixedWeights
 from encoder import AddNormalization, FeedForward
 
@@ -7,10 +7,10 @@ from encoder import AddNormalization, FeedForward
 class DecoderLayer(Layer):
     def __init__(self, h, d_k, d_v, d_model, d_ff, rate, **kwargs):
         super().__init__(**kwargs)
-        self.multihead_attention1 = MultiHeadAttention(h, d_k, d_v, d_model)
+        self.multihead_attention1 = MyMultiHeadAttention(h, d_k, d_v, d_model)
         self.dropout1 = Dropout(rate)
         self.add_norm1 = AddNormalization()
-        self.multihead_attention2 = MultiHeadAttention(h, d_k, d_v, d_model)
+        self.multihead_attention2 = MyMultiHeadAttention(h, d_k, d_v, d_model)
         self.dropout2 = Dropout(rate)
         self.add_norm2 = AddNormalization()
         self.feed_forward = FeedForward(d_ff, d_model)
