@@ -173,17 +173,30 @@ def main():
 
     # optimizer = tf.keras.optimizers.Adam(LRScheduler(d_model, 4000), 0.9, 0.98, 1e-9)
     optimizer = tf.keras.optimizers.Adam()
-    model = TransformerModel(enc_vocab_size, dec_vocab_size, enc_seq_length, dec_seq_length, heads, d_k, d_v, d_model,
+    model_compiled = TransformerModel(enc_vocab_size, dec_vocab_size, enc_seq_length, dec_seq_length, heads, d_k, d_v, d_model,
                              d_ff, layers, drop_rate)
 
-    # model.compile(optimizer=optimizer, loss=loss_fcn, metrics=[accuracy_fcn])
-    make_a_prediction("---- predictions with empty model", model, valX_enc, valX_dec, valY_dec)
-    # hist_obj = model.fit(train_ds, epochs=epochs, validation_data=valid_ds, verbose=fit_verbosity, callbacks=callbacks)
-    # model.save_weights(model_save_path)
+    model_compiled.compile(optimizer=optimizer, loss=loss_fcn, metrics=[accuracy_fcn])
+    make_a_prediction("---- predictions with empty model_compiled", model_compiled, valX_enc, valX_dec, valY_dec)
+    hist_obj = model_compiled.fit(train_ds, epochs=epochs, validation_data=valid_ds, verbose=fit_verbosity, callbacks=callbacks)
+    model_compiled.save_weights(model_save_path)
 
+    make_a_prediction("---- predictions with trained model_compiled", model_compiled, valX_enc, valX_dec, valY_dec)
+
+    model1_compiled = TransformerModel(enc_vocab_size, dec_vocab_size, enc_seq_length, dec_seq_length, heads, d_k, d_v, d_model,
+                             d_ff, layers, rate=0)
+    make_a_prediction("---- predictions with empty model1_compiled", model1_compiled, valX_enc, valX_dec, valY_dec)
+    model1_compiled.load_weights(model_save_path)
+    model1_compiled.load_weights(f"weights/0001.ckpt")
+    make_a_prediction("---- predictions with loaded model1_compiled", model1_compiled, valX_enc, valX_dec, valY_dec)
+
+
+    model_build = TransformerModel(enc_vocab_size, dec_vocab_size, enc_seq_length, dec_seq_length, heads, d_k, d_v, d_model,
+                             d_ff, layers, drop_rate)
+    make_a_prediction("---- predictions with empty model_build", model_build, valX_enc, valX_dec, valY_dec)
 
     # Create a checkpoint object and manager to manage multiple checkpoints
-    ckpt = tf.train.Checkpoint(model=model, optimizer=optimizer)
+    ckpt = tf.train.Checkpoint(model=model_build, optimizer=optimizer)
     ckpt_manager = tf.train.CheckpointManager(ckpt, "./checkpoints", max_to_keep=None)
 
     train_loss = tf.keras.metrics.Mean(name="train_loss")
@@ -198,12 +211,12 @@ def main():
         valid_accuracy.reset_states()
 
         for i, ((trainX_enc, trainX_dec), trainY_dec) in enumerate(train_ds):
-            loss, accuracy = train_step(model, optimizer, trainX_enc, trainX_dec, trainY_dec)
+            loss, accuracy = train_step(model_build, optimizer, trainX_enc, trainX_dec, trainY_dec)
             train_loss(loss)
             train_accuracy(accuracy)
 
         for i, ((valX_enc, valX_dec), valY_dec) in enumerate(valid_ds):
-            predict = model((valX_enc, valX_dec), training=False)
+            predict = model_build((valX_enc, valX_dec), training=False)
             loss = loss_fcn(valY_dec, predict)
             accuracy = accuracy_fcn(valY_dec, predict)
             valid_loss(loss)
@@ -215,10 +228,10 @@ def main():
         if epoch % 1 == 0:
             # save_path = chkpt_mgr.save()   # TF save mechanism
             # print(f"{epoch=}: save checkpoint {save_path}")
-            model.save_weights(f"weights/{epoch:04}.ckpt")  # Keras save mechanism
+            model_build.save_weights(f"weights/{epoch:04}.ckpt")  # Keras save mechanism
 
 
-    make_a_prediction("---- predictions with trained model", model, valX_enc, valX_dec, valY_dec)
+    make_a_prediction("---- predictions with trained model_build", model_build, valX_enc, valX_dec, valY_dec)
 
 
     model1 = TransformerModel(enc_vocab_size, dec_vocab_size, enc_seq_length, dec_seq_length, heads, d_k, d_v, d_model,
