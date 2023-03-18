@@ -41,13 +41,13 @@ class Translate(tf.Module):
         eos_token = tf.convert_to_tensor(eos_token, dtype=tf.int64)
 
         dec_input = tf.TensorArray(dtype=tf.int64, size=0, dynamic_size=True)
-        dec_input.write(0, start_token)
+        dec_input = dec_input.write(0, start_token)
 
         for i in range(self.dec_seq_length):
             inputs = (enc_input, tf.transpose(dec_input.stack())[0])
             predict = self.model(inputs)
             predict = tf.argmax(predict, axis=-1)
-            dec_input.write(i+1, predict[:, -1, tf.newaxis])
+            dec_input = dec_input.write(i+1, predict[:, -1, tf.newaxis])
 
         return tf.transpose(dec_input.stack())[0]
 
@@ -84,8 +84,8 @@ class Translate(tf.Module):
 
 def main():
     heads = 8
-    d_k = 128
-    d_v = 128
+    d_k = 64
+    d_v = 64
     d_model = 512
     d_ff = 2048
     drop_rate = 0
@@ -97,6 +97,8 @@ def main():
 
     model = TransformerModel(enc_vocab_size, dec_vocab_size, enc_seq_length, dec_seq_length, heads, d_k, d_v, d_model,
                              d_ff, layers, drop_rate)
+    model.load_weights("model/model.chkpt")
+
     translate = Translate(model, enc_seq_length=enc_seq_length, dec_seq_length=dec_seq_length)
 
     translate(["we are in paris"])
