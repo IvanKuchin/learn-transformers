@@ -45,7 +45,7 @@ class Translate(tf.Module):
 
         for i in range(self.dec_seq_length):
             inputs = (enc_input, tf.transpose(dec_input.stack())[0])
-            predict = self.model(inputs)
+            predict = self.model(inputs, training=False)
             predict = tf.argmax(predict, axis=-1)
             dec_input = dec_input.write(i+1, predict[:, -1, tf.newaxis])
 
