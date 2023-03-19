@@ -94,10 +94,10 @@ def test_ds(ds):
 def make_a_prediction(message, model, valX_enc, valX_dec, valY_dec):
     print(message)
     # preds = model.predict((valX_enc[0:1], valX_dec[0:1]), verbose=0)
-    preds = model((valX_enc[0:1], valX_dec[0:1]), training=False)
-    print(valX_enc[0:1].numpy())
-    print(valX_dec[0:1].numpy())
-    print(valY_dec[0:1].numpy())
+    preds = model((valX_enc[0:3], valX_dec[0:3]), training=False)
+    # print(valX_enc[0:1].numpy())
+    # print(valX_dec[0:1].numpy())
+    print(valY_dec[0:3].numpy())
     print(tf.argmax(preds, axis=-1))
 
 
